@@ -24,7 +24,7 @@ class PermissionTestActivity : AppCompatActivity(), FuckPermissionCallback {
 
     override fun onFuckPermissionRevoked(action: FuckPermissionOperate, grantedPermissions: Array<String>, revokedPermissions: Array<String>, canShowRequestPermissionRationale: Boolean) {
         Toast.makeText(this, "${revokedPermissions.size}个权限被拒绝", Toast.LENGTH_LONG).show()
-        if (canShowRequestPermissionRationale) {
+        if (revokedPermissions.isNotEmpty() && canShowRequestPermissionRationale) {
             action.requestPermission()
         }
     }
