@@ -1,5 +1,8 @@
 # 一个简单的权限处理库，只能在Activity上使用
 权限请求在Activity的**resume**生命周期执行，只会执行一次.
+```
+implementation 'com.github.tomlezen:FuckPermission:0.0.1'
+```
 ### 1. 在Application里初始化注册
 ```
 FuckPermissionProcessor().install(this)
