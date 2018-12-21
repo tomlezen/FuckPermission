@@ -11,7 +11,7 @@ class AppApplication: Application(){
 
     override fun onCreate() {
         super.onCreate()
-        FuckPermissionProcessor().install(this)
+        FuckPermissionProcessor.install(this)
     }
 
 }

@@ -22,10 +22,10 @@ class PermissionTestActivity : AppCompatActivity(), FuckPermissionCallback {
         Toast.makeText(this, "权限已被允许", Toast.LENGTH_LONG).show()
     }
 
-    override fun onFuckPermissionRevoked(action: FuckPermissionOperate, grantedPermissions: Array<String>, revokedPermissions: Array<String>, canShowRequestPermissionRationale: Boolean) {
+    override fun onFuckPermissionRevoked(operate: FuckPermissionOperate, grantedPermissions: Array<String>, revokedPermissions: Array<String>, canShowRequestPermissionRationale: Boolean) {
         Toast.makeText(this, "${revokedPermissions.size}个权限被拒绝", Toast.LENGTH_LONG).show()
         if (revokedPermissions.isNotEmpty() && canShowRequestPermissionRationale) {
-            action.requestPermission()
+            operate.requestPermission()
         }
     }
 

@@ -7,7 +7,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.support.v4.app.ActivityCompat
+import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentActivity
+import android.support.v4.app.FragmentManager
 import com.tlz.fuckpermission.annotations.FuckPermission
 
 /**
@@ -29,8 +31,27 @@ interface FuckPermissionProcessor {
      */
     fun uninstall(app: Application)
 
-    companion object {
-        operator fun invoke(): FuckPermissionProcessor = FuckPermissionProcessorImpl()
+    companion object : FuckPermissionProcessor {
+
+        private var sInstance: FuckPermissionProcessor? = null
+
+        operator fun invoke(): FuckPermissionProcessor = sInstance ?: FuckPermissionProcessorImpl().also { sInstance = null }
+
+        /**
+         * 安装权限处理器..
+         * @param app: Application
+         */
+        override fun install(app: Application) {
+            FuckPermissionProcessor().install(app)
+        }
+
+        /**
+         * 卸载权限处理器.
+         * @param app Application
+         */
+        override fun uninstall(app: Application) {
+            FuckPermissionProcessor().uninstall(app)
+        }
 
         /**
          * 是否可以还可以显示权限请求框.
@@ -78,6 +99,9 @@ interface FuckPermissionProcessor {
 
 interface FuckPermissionOperate {
 
+    /**
+     * 请求权限.
+     */
     fun requestPermission()
 
     companion object {
@@ -165,6 +189,14 @@ private class FuckPermissionProcessorImpl : FuckPermissionProcessor, FuckPermiss
         app.unregisterActivityLifecycleCallbacks(activityLifecycleCallbacks)
     }
 
+    fun request(act: Activity, permissions: Array<out String>) {
+
+    }
+
+    fun request(frg: Fragment, permissions: Array<out String>) {
+
+    }
+
     override fun checkAndRequestPermission(act: Activity) {
         val fuckPermission = act.javaClass.getAnnotation(FuckPermission::class.java)
         if (act is FragmentActivity && fuckPermission?.permissions?.isNotEmpty() == true) {
@@ -181,6 +213,8 @@ private class FuckPermissionProcessorImpl : FuckPermissionProcessor, FuckPermiss
             frg.requestPermissions(this, fuckPermission.permissions)
         }
     }
+
+    private fun requestPermissions(fm: FragmentManager, tag: String, )
 
     override fun onRequestPermissionsResult(act: Activity?, requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         act?.let { _act ->
@@ -201,7 +235,12 @@ private class FuckPermissionProcessorImpl : FuckPermissionProcessor, FuckPermiss
                 if (revokeds.isEmpty()) {
                     callback.onFuckPermissionGranted(operate)
                 } else {
-                    callback.onFuckPermissionRevoked(operate, granteds.toTypedArray(), revokeds.toTypedArray(), FuckPermissionProcessor.shouldShowRequestPermissionRationale(_act, *(revokeds.toTypedArray())))
+                    callback.onFuckPermissionRevoked(
+                        operate,
+                        granteds.toTypedArray(),
+                        revokeds.toTypedArray(),
+                        FuckPermissionProcessor.shouldShowRequestPermissionRationale(_act, *(revokeds.toTypedArray()))
+                    )
                 }
                 callback.onFuckPermissionAfter()
             }

@@ -9,9 +9,11 @@ import android.support.v4.app.Fragment
 internal class FuckPermissionFragment : Fragment() {
 
     private var permissionResult: FuckPermissionResult? = null
+    private val reqList = mutableListOf<Pair<String, Array<String>>>()
 
-    internal fun requestPermissions(permissionResult: FuckPermissionResult, permissions: Array<String>) {
+    internal fun requestPermissions(permissionResult: FuckPermissionResult, reqTag: String, permissions: Array<String>) {
         this@FuckPermissionFragment.permissionResult = permissionResult
+        reqList.add(reqTag to permissions)
         requestPermissions(permissions, REQUEST_CODE)
     }
 
@@ -21,6 +23,7 @@ internal class FuckPermissionFragment : Fragment() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         if (requestCode == REQUEST_CODE) {
+
             permissionResult?.onRequestPermissionsResult(activity, requestCode, permissions, grantResults)
         } else {
             removeSelf()
