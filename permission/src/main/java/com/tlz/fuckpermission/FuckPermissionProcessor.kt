@@ -244,13 +244,13 @@ private class FuckPermissionProcessorImpl : FuckPermissionProcessor, FuckPermiss
     /** Activity生命周期回调. */
     private val activityLifecycleCallbacks by lazy {
         object : ActivityLifecycleCallbacksAdapter() {
-            override fun onActivityCreated(activity: Activity?, savedInstanceState: Bundle?) {
-                if (activity is FragmentActivity) {
-                    activity.javaClass.getAnnotation(FuckPermissionSurpportFragment::class.java)?.let {
-
-                    }
-                }
-            }
+//            override fun onActivityCreated(activity: Activity?, savedInstanceState: Bundle?) {
+//                if (activity is FragmentActivity) {
+//                    activity.javaClass.getAnnotation(FuckPermissionSurpportFragment::class.java)?.let {
+//
+//                    }
+//                }
+//            }
 
             override fun onActivityResumed(activity: Activity?) {
                 activity?.let {
@@ -316,7 +316,6 @@ private class FuckPermissionProcessorImpl : FuckPermissionProcessor, FuckPermiss
         val permissionItem = permissionItems g tag
         if (permissionItem.isRequesting) return
         permissionItem.callback = callback
-        fm.registerFragmentLifecycleCallbacks()
         callback?.onFuckPermissionBefore()
         val frg = permissionItem.frg
         if (!frg.isAdded) {
@@ -374,6 +373,7 @@ private class FuckPermissionProcessorImpl : FuckPermissionProcessor, FuckPermiss
     }
 
     fun request(frg: Fragment, permissions: Array<String>): FuckPermissionRequestCallbackWrapper {
+        frg.userVisibleHint
         return frg.activity?.let { request(it, permissions) }
             ?: throw IllegalStateException("Fragment " + this + " not attached to Activity")
     }

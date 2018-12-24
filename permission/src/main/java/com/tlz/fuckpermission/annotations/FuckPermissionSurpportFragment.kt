@@ -7,7 +7,7 @@ package com.tlz.fuckpermission.annotations
  * Date: 2018/12/23.
  * Time: 10:12 PM.
  */
-@Retention(AnnotationRetention.RUNTIME)
-@Target(AnnotationTarget.CLASS)
-@MustBeDocumented
-annotation class FuckPermissionSurpportFragment
+//@Retention(AnnotationRetention.RUNTIME)
+//@Target(AnnotationTarget.CLASS)
+//@MustBeDocumented
+//annotation class FuckPermissionSurpportFragment
