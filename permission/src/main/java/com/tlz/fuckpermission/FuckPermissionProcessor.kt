@@ -5,14 +5,11 @@ import android.app.Activity
 import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Build
-import android.os.Bundle
-import android.support.v4.app.ActivityCompat
-import android.support.v4.app.Fragment
-import android.support.v4.app.FragmentActivity
-import android.support.v4.app.FragmentManager
+import androidx.core.app.ActivityCompat
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentActivity
 import com.tlz.fuckpermission.adapters.ActivityLifecycleCallbacksAdapter
 import com.tlz.fuckpermission.annotations.FuckPermission
-import com.tlz.fuckpermission.annotations.FuckPermissionSurpportFragment
 
 /**
  * 权限处理器.
@@ -33,6 +30,22 @@ interface FuckPermissionProcessor {
      */
     fun uninstall(app: Application)
 
+    /**
+     * 手动请求权限.
+     * @param act FragmentActivity
+     * @param permissions Array<String>
+     * @return FuckPermissionRequestCallbackWrapper
+     */
+    fun request(act: FragmentActivity, permissions: Array<String>): FuckPermissionRequestCallbackWrapper
+
+    /**
+     * 手动请求权限.
+     * @param frg Fragment
+     * @param permissions Array<String>
+     * @return FuckPermissionRequestCallbackWrapper
+     */
+    fun request(frg: Fragment, permissions: Array<String>): FuckPermissionRequestCallbackWrapper
+
     companion object : FuckPermissionProcessor {
 
         private var sInstance: FuckPermissionProcessor? = null
@@ -44,7 +57,7 @@ interface FuckPermissionProcessor {
          * @param app: Application
          */
         override fun install(app: Application) {
-            FuckPermissionProcessor().install(app)
+            FuckPermissionProcessor.invoke().install(app)
         }
 
         /**
@@ -52,8 +65,14 @@ interface FuckPermissionProcessor {
          * @param app Application
          */
         override fun uninstall(app: Application) {
-            FuckPermissionProcessor().uninstall(app)
+            FuckPermissionProcessor.invoke().uninstall(app)
         }
+
+        override fun request(act: FragmentActivity, permissions: Array<String>): FuckPermissionRequestCallbackWrapper =
+            FuckPermissionProcessor.invoke().request(act, permissions)
+
+        override fun request(frg: Fragment, permissions: Array<String>): FuckPermissionRequestCallbackWrapper =
+            FuckPermissionProcessor.invoke().request(frg, permissions)
 
         /**
          * 是否可以还可以显示权限请求框.
@@ -113,12 +132,12 @@ interface FuckPermissionOperate {
     fun request()
 
     companion object {
-        internal operator fun invoke(request: FuckPermissionRequest, tag: Any): FuckPermissionOperate =
+        internal operator fun invoke(request: FuckPermissionRequest, tag: String): FuckPermissionOperate =
             FuckPermissionOperateImpl(request, tag)
     }
 }
 
-private class FuckPermissionOperateImpl(private val request: FuckPermissionRequest, private val tag: Any) :
+private class FuckPermissionOperateImpl(private val request: FuckPermissionRequest, private val tag: String) :
     FuckPermissionOperate {
     override fun requestPermission() {
         request()
@@ -130,14 +149,13 @@ private class FuckPermissionOperateImpl(private val request: FuckPermissionReque
 }
 
 internal interface FuckPermissionRequest {
-    fun checkAndRequestPermission(tag: Any)
+    fun checkAndRequestPermission(tag: String)
 }
-
 
 internal interface FuckPermissionResult {
     fun onRequestPermissionsResult(
-        act: Activity,
-        tag: Any?,
+        act: FragmentActivity,
+        tag: String?,
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray
@@ -239,7 +257,9 @@ private class FuckPermissionProcessorImpl : FuckPermissionProcessor, FuckPermiss
     /** 是否已安装. */
     private var isInstalled = false
 
-    private val permissionItems = mutableMapOf<Any, FuckPermissionItem>()
+    private val permissionItems = mutableMapOf<String, FuckPermissionItem>()
+    /** 每个Activity实例对应的tag. */
+    private val targetTags = mutableMapOf<FragmentActivity, String>()
 
     /** Activity生命周期回调. */
     private val activityLifecycleCallbacks by lazy {
@@ -254,14 +274,26 @@ private class FuckPermissionProcessorImpl : FuckPermissionProcessor, FuckPermiss
 
             override fun onActivityResumed(activity: Activity?) {
                 activity?.let {
-                    if (!permissionItems.contains(it)) {
-                        this@FuckPermissionProcessorImpl.requestPermissionFromAnnotation(it)
+                    if (it is FragmentActivity) {
+                        if (!permissionItems.contains(targetTags g it)) {
+                            this@FuckPermissionProcessorImpl.requestPermissionFromAnnotation(it)
+                        }
                     }
                 }
             }
 
             override fun onActivityDestroyed(activity: Activity?) {
-                activity?.let { permissionItems.remove(activity) }
+                activity?.let {
+                    if (it is FragmentActivity) {
+                        val targetTag = targetTags g it
+                        permissionItems.keys.forEach { tag ->
+                            if (tag.startsWith(targetTag)) {
+                                permissionItems.remove(tag)
+                            }
+                        }
+                        targetTags.remove(it)
+                    }
+                }
             }
         }
     }
@@ -274,9 +306,9 @@ private class FuckPermissionProcessorImpl : FuckPermissionProcessor, FuckPermiss
         val fuckPermission = act.javaClass.getAnnotation(FuckPermission::class.java)
         if (act is FragmentActivity && fuckPermission?.permissions?.isNotEmpty() == true) {
             val permissionCallback = act as? FuckPermissionCallback
-            val permissionItem = permissionItems g act
+            val permissionItem = permissionItems.g(targetTags g act, act)
             if (permissionItem.isRequesting) return
-            requestPermissions(act.supportFragmentManager, act, fuckPermission.permissions, permissionCallback)
+            requestPermissions(targetTags g act, act, fuckPermission.permissions, permissionCallback)
         }
     }
 
@@ -290,51 +322,55 @@ private class FuckPermissionProcessorImpl : FuckPermissionProcessor, FuckPermiss
         app.unregisterActivityLifecycleCallbacks(activityLifecycleCallbacks)
     }
 
-    override fun checkAndRequestPermission(tag: Any) {
+    override fun checkAndRequestPermission(tag: String) {
         permissionItems[tag]?.let {
-//            val fm = when (tag) {
-//                is FragmentActivity -> tag.supportFragmentManager
-//                is Fragment -> tag.childFragmentManager
-//            }
-            requestPermissions()
+            requestPermissions(tag, it.target, it.permissions, it.callback)
         }
     }
 
     /**
      * 请求权限.
-     * @param fm FragmentManager
      * @param tag Any
      * @param permissions Array<String>
      * @param callback FuckPermissionCallback?
      */
     private fun requestPermissions(
-        fm: FragmentManager,
-        tag: Any,
+        tag: String,
+        target: FragmentActivity,
         permissions: Array<String>,
         callback: FuckPermissionCallback?
     ) {
-        val permissionItem = permissionItems g tag
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && target.isDestroyed) return
+        val permissionItem = permissionItems.g(tag, target)
         if (permissionItem.isRequesting) return
         permissionItem.callback = callback
+        permissionItem.permissions = permissions
         callback?.onFuckPermissionBefore()
         val frg = permissionItem.frg
-        if (!frg.isAdded) {
-            fm.beginTransaction().add(frg, FuckPermissionFragment::class.java.canonicalName)
-                .commitNowAllowingStateLoss()
+        // 这里有可能会申请失败
+        runCatching {
+            if (!frg.isAdded) {
+                target.supportFragmentManager.beginTransaction()
+                    .add(frg, FuckPermissionFragment::class.java.canonicalName)
+                    .commitNow()
+            }
+        }.onSuccess {
+            permissionItem.isRequesting = true
+            frg.requestPermissions(this, tag, permissions)
+        }.onFailure {
+            callback?.onFuckPermissionAfter()
         }
-        permissionItem.isRequesting = true
-        frg.requestPermissions(this, tag, permissions)
     }
 
     override fun onRequestPermissionsResult(
-        act: Activity,
-        tag: Any?,
+        act: FragmentActivity,
+        tag: String?,
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
         tag?.let { _tag ->
-            val permissionItem = permissionItems g _tag
+            val permissionItem = permissionItems.g(_tag, act)
             permissionItem.callback?.let { callback ->
                 val granteds = mutableListOf<String>()
                 val revokeds = mutableListOf<String>()
@@ -363,27 +399,59 @@ private class FuckPermissionProcessorImpl : FuckPermissionProcessor, FuckPermiss
         }
     }
 
-    fun request(act: Activity, permissions: Array<String>): FuckPermissionRequestCallbackWrapper {
-        if (act is FragmentActivity) {
-            val callbackWrapper = FuckPermissionRequestCallbackWrapper()
-            requestPermissions(act.supportFragmentManager, act, permissions, callbackWrapper.callback)
-            return callbackWrapper
+    override fun request(act: FragmentActivity, permissions: Array<String>): FuckPermissionRequestCallbackWrapper =
+        FuckPermissionRequestCallbackWrapper().also {
+            // 生成新的tag
+            val tag = (targetTags g act) + "-" + System.currentTimeMillis().toString()
+            requestPermissions(tag, act, permissions, it.callback)
         }
-        throw IllegalArgumentException("Activity must be FragmentActivity")
-    }
 
-    fun request(frg: Fragment, permissions: Array<String>): FuckPermissionRequestCallbackWrapper {
-        frg.userVisibleHint
+    override fun request(frg: Fragment, permissions: Array<String>): FuckPermissionRequestCallbackWrapper {
         return frg.activity?.let { request(it, permissions) }
             ?: throw IllegalStateException("Fragment " + this + " not attached to Activity")
     }
 
 
-    infix fun MutableMap<Any, FuckPermissionItem>.g(tag: Any): FuckPermissionItem =
-        this[tag] ?: FuckPermissionItem().also {
+    fun MutableMap<String, FuckPermissionItem>.g(tag: String, target: FragmentActivity): FuckPermissionItem =
+        this[tag] ?: FuckPermissionItem(target = target).also {
             this[tag] = it
         }
 
-    data class FuckPermissionItem(var isRequesting: Boolean = false, var callback: FuckPermissionCallback? = null, var frg: FuckPermissionFragment = FuckPermissionFragment())
+    infix fun MutableMap<FragmentActivity, String>.g(target: FragmentActivity): String =
+        this[target] ?: (target::class.java.simpleName + System.currentTimeMillis().toString()).also {
+            this[target] = it
+        }
+
+    data class FuckPermissionItem(
+        var isRequesting: Boolean = false,
+        var callback: FuckPermissionCallback? = null,
+        var permissions: Array<String> = arrayOf(),
+        var frg: FuckPermissionFragment = FuckPermissionFragment(),
+        var target: FragmentActivity
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as FuckPermissionItem
+
+            if (isRequesting != other.isRequesting) return false
+            if (callback != other.callback) return false
+            if (!permissions.contentEquals(other.permissions)) return false
+            if (frg != other.frg) return false
+            if (target != other.target) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = isRequesting.hashCode()
+            result = 31 * result + (callback?.hashCode() ?: 0)
+            result = 31 * result + permissions.contentHashCode()
+            result = 31 * result + frg.hashCode()
+            result = 31 * result + target.hashCode()
+            return result
+        }
+    }
 
 }

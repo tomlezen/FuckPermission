@@ -1,7 +1,7 @@
 package ocm.tlz.fuckpermission.example
 
 import android.Manifest
-import android.support.v7.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatActivity
 import android.widget.Toast
 import com.tlz.fuckpermission.FuckPermissionCallback
 import com.tlz.fuckpermission.FuckPermissionOperate
@@ -25,7 +25,7 @@ class PermissionTestActivity : AppCompatActivity(), FuckPermissionCallback {
     override fun onFuckPermissionRevoked(operate: FuckPermissionOperate, grantedPermissions: Array<String>, revokedPermissions: Array<String>, canShowRequestPermissionRationale: Boolean) {
         Toast.makeText(this, "${revokedPermissions.size}个权限被拒绝", Toast.LENGTH_LONG).show()
         if (revokedPermissions.isNotEmpty() && canShowRequestPermissionRationale) {
-            operate.requestPermission()
+            operate.request()
         }
     }
 

@@ -1,6 +1,6 @@
 package com.tlz.fuckpermission
 
-import android.support.v4.app.Fragment
+import androidx.fragment.app.Fragment
 
 /**
  * By tomlezen
@@ -9,9 +9,9 @@ import android.support.v4.app.Fragment
 internal class FuckPermissionFragment : Fragment() {
 
     private var permissionResult: FuckPermissionResult? = null
-    private var reqTag: Any? = null
+    private var reqTag: String? = null
 
-    internal fun requestPermissions(permissionResult: FuckPermissionResult, reqTag: Any, permissions: Array<String>) {
+    internal fun requestPermissions(permissionResult: FuckPermissionResult, reqTag: String, permissions: Array<String>) {
         this@FuckPermissionFragment.permissionResult = permissionResult
         this.reqTag = reqTag
         requestPermissions(permissions, REQUEST_CODE)
